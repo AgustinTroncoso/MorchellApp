@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Button, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { predictMorchella } from '../services/PredictionService';
+import { launchCamera, launchImageLibrary, ImageLibraryOptions, CameraOptions } from 'react-native-image-picker';
 
 export default function TestScreen() {
   const [imageUri, setImageUri] = useState<string>('');
@@ -8,6 +9,7 @@ export default function TestScreen() {
   const [result, setResult] = useState<{ source: string; probability: number } | null>(null);
 
   async function onPredict() {
+    if (!imageUri) return Alert.alert('Selecciona una imagen primero');
     setLoading(true);
     try {
       const res = await predictMorchella(imageUri);
@@ -19,20 +21,37 @@ export default function TestScreen() {
     }
   }
 
+  function onTakePhoto() {
+    const options: CameraOptions = { mediaType: 'photo', cameraType: 'back', quality: 0.8 };
+    launchCamera(options, (response) => {
+      if (response.didCancel) return;
+      if (response.errorCode) return Alert.alert('Error cámara', response.errorMessage || '');
+      const uri = response.assets && response.assets[0] && response.assets[0].uri;
+      if (uri) setImageUri(uri);
+    });
+  }
+
+  function onPickFromGallery() {
+    const options: ImageLibraryOptions = { mediaType: 'photo', quality: 0.8 };
+    launchImageLibrary(options, (response) => {
+      if (response.didCancel) return;
+      if (response.errorCode) return Alert.alert('Error galería', response.errorMessage || '');
+      const uri = response.assets && response.assets[0] && response.assets[0].uri;
+      if (uri) setImageUri(uri);
+    });
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Morchella Classifier — Test</Text>
 
-      <Text style={styles.label}>Image URI (file:// or content://)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="file:///sdcard/DCIM/Camera/photo.jpg"
-        value={imageUri}
-        onChangeText={setImageUri}
-        autoCapitalize="none"
-      />
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+        <Button title="Tomar foto" onPress={onTakePhoto} />
+        <View style={{ width: 8 }} />
+        <Button title="Galería" onPress={onPickFromGallery} />
+      </View>
 
-      <Button title="Predict" onPress={onPredict} disabled={loading || !imageUri} />
+      <Button title="Analizar imagen" onPress={onPredict} disabled={loading || !imageUri} />
 
       {loading && <ActivityIndicator style={{ marginTop: 12 }} />}
 
