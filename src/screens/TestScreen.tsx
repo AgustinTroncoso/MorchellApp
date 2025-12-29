@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
 import { View, Text, Button, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { predictMorchella } from '../services/PredictionService';
+import { predictMorchella, classifyImage, Prediction } from '../services/PredictionService';
 import { launchCamera, launchImageLibrary, ImageLibraryOptions, CameraOptions } from 'react-native-image-picker';
 
 export default function TestScreen() {
   const [imageUri, setImageUri] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ source: string; probability: number } | null>(null);
+  const [result, setResult] = useState<{ source: string; probability?: number; prediction?: Prediction } | null>(null);
 
   async function onPredict() {
     if (!imageUri) return Alert.alert('Selecciona una imagen primero');
     setLoading(true);
     try {
-      const res = await predictMorchella(imageUri);
-      setResult(res as any);
+      // prefer local classify
+      const prediction = await classifyImage(imageUri);
+      setResult({ source: 'local', prediction });
     } catch (e) {
-      setResult({ source: 'error', probability: 0 });
+      setResult({ source: 'error' });
     } finally {
       setLoading(false);
     }
@@ -55,10 +56,12 @@ export default function TestScreen() {
 
       {loading && <ActivityIndicator style={{ marginTop: 12 }} />}
 
-      {result && (
+      {result && result.prediction && (
         <View style={styles.result}>
-          <Text>Source: {result.source}</Text>
-          <Text>Probability: {result.probability.toFixed(3)}</Text>
+          <Text>Label: {result.prediction.predicted_label}</Text>
+          <Text>Confidence: {(result.prediction.confidence * 100).toFixed(2)}%</Text>
+          <Text>Morchella: {(result.prediction.prob_morchella * 100).toFixed(2)}%</Text>
+          <Text>No Morchella: {(result.prediction.prob_no_morchella * 100).toFixed(2)}%</Text>
         </View>
       )}
 

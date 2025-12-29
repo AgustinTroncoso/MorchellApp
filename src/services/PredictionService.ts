@@ -3,9 +3,18 @@ import { NativeModules } from 'react-native';
 
 const { MorchellaClassifier } = NativeModules;
 
+export type Prediction = {
+  raw_output: number[];
+  prob_morchella: number;
+  prob_no_morchella: number;
+  predicted_index: number;
+  predicted_label: string;
+  confidence: number;
+  printed_lines: string[];
+}
+
 function createFormData(uri: string) {
   const data = new FormData();
-  // The RN ImagePicker or camera should provide a file:// uri
   data.append('file', {
     uri,
     name: 'photo.jpg',
@@ -37,7 +46,30 @@ export async function predictMorchella(imageUri: string) {
   }
 
   // Fallback to local on-device inference
-  const result = await MorchellaClassifier.predict(imageUri);
-  // result is a map { probability }
-  return { source: 'local', probability: result.probability };
+  const result = await MorchellaClassifier.classify(imageUri);
+  // Parse result according to contract
+  const parsed: Prediction = {
+    raw_output: result.raw_output || [],
+    prob_morchella: result.prob_morchella || 0,
+    prob_no_morchella: result.prob_no_morchella || 0,
+    predicted_index: result.predicted_index ?? 0,
+    predicted_label: result.predicted_label || '',
+    confidence: result.confidence || 0,
+    printed_lines: result.printed_lines || [],
+  };
+  return { source: 'local', prediction: parsed };
+}
+
+export async function classifyImage(imageUri: string): Promise<Prediction> {
+  const result = await MorchellaClassifier.classify(imageUri);
+  const parsed: Prediction = {
+    raw_output: result.raw_output || [],
+    prob_morchella: result.prob_morchella || 0,
+    prob_no_morchella: result.prob_no_morchella || 0,
+    predicted_index: result.predicted_index ?? 0,
+    predicted_label: result.predicted_label || '',
+    confidence: result.confidence || 0,
+    printed_lines: result.printed_lines || [],
+  };
+  return parsed;
 }
